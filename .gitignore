@@ -1,3 +1,12 @@
+# Dataset
+data/
+
+# Trained weights
+save/
+
+# JetBrains IDE configuration files
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
