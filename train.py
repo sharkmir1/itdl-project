@@ -22,6 +22,8 @@ def train(model, o, dataset, args):
     input words => indices all removed from tags / trained to output indexed tags
     target words => indices included
     """
+    model.train()
+
     print("Training", end=" ")
     loss = 0
     ex = 0

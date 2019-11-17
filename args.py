@@ -17,7 +17,7 @@ def set_args(args, ds):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Graph Doc Plan')
+    parser = argparse.ArgumentParser(description='Abstract Generation')
 
     # model
     parser.add_argument("-model", default="graph")
@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument("-eval", action='store_true')
 
     # inference
-    parser.add_argument("-max", default=200, type=int)
+    parser.add_argument("-maxlen", default=200, type=int)
     parser.add_argument("-test", action='store_true')
     parser.add_argument("-sample", action='store_true')
     parser.add_argument("-inputs", default="../data/fullGraph.test.tsv", type=str)

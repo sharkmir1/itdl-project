@@ -4,6 +4,8 @@ from torchtext import data
 import args as arg
 from copy import copy
 
+import ipdb
+
 
 class PaperDataset:
     def __init__(self, args):
@@ -272,3 +274,4 @@ class PaperDataset:
 if __name__ == "__main__":
     args = arg.parse_args()
     ds = PaperDataset(args)
+    ipdb.set_trace()
