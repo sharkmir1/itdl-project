@@ -2,7 +2,7 @@ import torch
 import argparse
 
 
-def dynArgs(args, ds):
+def set_args(args, ds):
     args.ntoks = len(ds.OUTP.vocab)
     args.tgttoks = len(ds.TGT.vocab)
     args.ninput = len(ds.INP.vocab)
@@ -17,7 +17,7 @@ def dynArgs(args, ds):
     return args
 
 
-def pargs():
+def parse_args():
     parser = argparse.ArgumentParser(description='Graph Doc Plan')
 
     # model
@@ -43,24 +43,12 @@ def pargs():
     parser.add_argument("-epochs", default=20, type=int)
     parser.add_argument("-clip", default=1, type=float)
 
-    # optim
-    '''
-  parser.add_argument('-lr_warmup', type=float, default=0.002)
-  parser.add_argument('-lr_schedule', type=str, default='warmup_linear')
-  parser.add_argument("-lr",default=6.25e-5,type=float)
-  parser.add_argument("-sgdlr",default=0.1,type=float)
-  parser.add_argument('-b1', type=float, default=0.9)
-  parser.add_argument('-b2', type=float, default=0.999)
-  parser.add_argument('-e', type=float, default=1e-8)
-  parser.add_argument('-l2', type=float, default=0.01)
-  parser.add_argument('-vector_l2', action='store_true')
-  '''
+    # optimization
     parser.add_argument("-lr", default=0.1, type=float)
     parser.add_argument("-lrhigh", default=0.5, type=float)
     parser.add_argument("-lrstep", default=4, type=int)
     parser.add_argument("-lrwarm", action="store_true")
     parser.add_argument("-lrdecay", action="store_true")
-
     parser.add_argument('-max_grad_norm', type=int, default=1)
 
     # data
@@ -85,8 +73,6 @@ def pargs():
     parser.add_argument("-t1size", default=32, type=int)
     parser.add_argument("-t2size", default=24, type=int)
     parser.add_argument("-t3size", default=8, type=int)
-    parser.add_argument("-sparse", action='store_true')
-    parser.add_argument("-plan", action='store_true')
     parser.add_argument("-title", action='store_true')
     parser.add_argument("-ckpt", default=None, type=str)
     parser.add_argument("-plweight", default=0.2, type=float)
@@ -96,9 +82,6 @@ def pargs():
     args = parser.parse_args()
     args.gpu = "cpu" if args.gpu == -1 else "cuda:" + str(args.gpu)
     args.device = torch.device(args.gpu)
-    torch.cuda.set_device(args.gpu)
-
-    args.options_file = "../elmo/elmo_2x2048_256_2048cnn_1xhighway_options.json"
-    args.weight_file = "../elmo/elmo_2x2048_256_2048cnn_1xhighway_weights.hdf5"
+    torch.cuda.set_device(args.device)
 
     return args

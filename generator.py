@@ -1,9 +1,9 @@
 import torch
 import argparse
 from time import time
-from lastDataset import dataset
+from dataset import PaperDataset
 from models.newmodel import model
-from pargs import pargs, dynArgs
+from args import parse_args, set_args
 from tqdm import tqdm
 
 
@@ -26,7 +26,7 @@ def test(args, ds, m, epoch='cmdline'):
     model = args.save.split("/")[-1]
     m.eval()
     k = 0
-    data = ds.mktestset(args)
+    data = ds.make_test(args)
     ofn = "../outputs/" + model + ".inputs.beam_predictions." + epoch
     pf = open(ofn, 'w')
     preds = []
@@ -34,7 +34,7 @@ def test(args, ds, m, epoch='cmdline'):
     for b in tqdm(data):
         # if k == 10: break
         # print(k,len(data))
-        b = ds.fixBatch(b)
+        b = ds.collate_fn(b)
         '''
     p,z = m(b)
     p = p[0].max(1)[1]
@@ -69,19 +69,19 @@ def metrics(preds,gold):
 '''
 
 if __name__ == "__main__":
-    args = pargs()
+    args = parse_args()
     args.eval = True
-    ds = dataset(args)
-    args = dynArgs(args, ds)
+    ds = PaperDataset(args)
+    args = set_args(args, ds)
     m = model(args)
     cpt = torch.load(args.save)
     m.load_state_dict(cpt)
     m = m.to(args.device)
     m.args = args
     m.maxlen = args.max
-    m.starttok = ds.OUTP.vocab.stoi['<start>']
-    m.endtok = ds.OUTP.vocab.stoi['<eos>']
-    m.eostok = ds.OUTP.vocab.stoi['.']
+    m.starttok = ds.OUTPUT.vocab.stoi['<start>']
+    m.endtok = ds.OUTPUT.vocab.stoi['<eos>']
+    m.eostok = ds.OUTPUT.vocab.stoi['.']
     args.vbsz = 1
     preds, gold = test(args, ds, m)
     '''

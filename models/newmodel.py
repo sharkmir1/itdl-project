@@ -37,7 +37,7 @@ class model(nn.Module):
             tencs, _ = self.tenc(b.src)  # (batch_size, title_len, 500)
             tmask = self.maskFromList(tencs.size(), b.src[1]).unsqueeze(1)  # (batch_size, 1, title_len)
         outp, _ = b.out  # (batch_size, max abstract len) / all tag indices removed
-        ents = b.ent  # tuple of (ent, phlens, elens) / refer to fixBatch in lastDataset.py
+        ents = b.ent  # tuple of (ent, phlens, elens) / refer to fixBatch in dataset.py
         entlens = ents[2]
         ents = self.le(ents)
         # ents: (batch_size (num of rows), max entity num, 500) / encoded hidden state of entities in batch
@@ -215,14 +215,6 @@ class model(nn.Module):
             o = torch.cat((o, z), 2)  # (beam size, 1, target vocab size + entity num)
             o[:, :, 0].fill_(0)  # remove probability for special tokens <unk>, <init>
             o[:, :, 1].fill_(0)
-            '''
-      if beam:
-        for p,q in enumerate(beam.getPrevEnt()):
-          o[p,:,q].fill_(0)
-        for p,q in beam.getIsStart():
-          for r in q:
-            o[p,:,r].fill_(0)
-      '''
 
             o = o + (1e-6 * torch.ones_like(o))
             decoded = o.log()

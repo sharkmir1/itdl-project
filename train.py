@@ -5,8 +5,8 @@ from math import exp
 import torch
 from torch import nn
 from torch.nn import functional as F
-from lastDataset import dataset
-from pargs import pargs, dynArgs
+from dataset import PaperDataset
+from args import parse_args, set_args
 from models.newmodel import model
 
 
@@ -32,7 +32,7 @@ def train(m, o, ds, args):
         for count, b in enumerate(train_iter):
             if count % 100 == 99:
                 print(ex, "of like 40k -- current avg loss ", (loss / ex))
-            b = ds.fixBatch(b)
+            b = ds.collate_fn(b)
             p, z, planlogits = m(b)  # p: (batch_size, max abstract len, target vocab size + max entity num)
             p = p[:, :-1, :].contiguous()  # exclude last words from each abstract
 
@@ -65,7 +65,7 @@ def evaluate(m, ds, args):
     loss = 0
     ex = 0
     for b in ds.val_iter:
-        b = ds.fixBatch(b)
+        b = ds.collate_fn(b)
         p, z, planlogits = m(b)
         p = p[:, :-1, :]
         tgt = b.tgt[:, 1:].contiguous().view(-1).to(args.device)
@@ -88,19 +88,12 @@ def main(args):
         input("Save File Exists, OverWrite? <CTL-C> for no")
     except:
         os.mkdir(args.save)
-    ds = dataset(args)
-    args = dynArgs(args, ds)
+    ds = PaperDataset(args)
+    args = set_args(args, ds)
     m = model(args)
     print(args.device)
     m = m.to(args.device)
     if args.ckpt:
-        #
-        # with open(args.save+"/commandLineArgs.txt") as f:
-        #   clargs = f.read().strip().split("\n")
-        #   argdif =[x for x in sys.argv[1:] if x not in clargs]
-        #   assert(len(argdif)==2);
-        #   assert([x for x in argdif if x[0]=='-']==['-ckpt'])
-        #
         cpt = torch.load(args.ckpt)
         m.load_state_dict(cpt)
         starte = int(args.ckpt.split("/")[-1].split(".")[0]) + 1
@@ -133,5 +126,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = pargs()
+    args = parse_args()
     main(args)
