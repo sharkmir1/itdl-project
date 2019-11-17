@@ -35,7 +35,6 @@ class Model(nn.Module):
             title_encoding, _ = self.title_encoder(batch.title)  # (batch_size, title_len, 500)
             title_mask = self.create_mask(title_encoding.size(), batch.title[1]).unsqueeze(1)  # (batch_size, 1, title_len)
         output, _ = batch.out  # (batch_size, max abstract len) / all tag indices removed
-        ipdb.set_trace()
         ents = batch.ent  # tuple of (ent, ent_len_list, ent_num_list) / refer to collate_fn in dataset.py
         ent_num_list = ents[2]
         ents = self.entity_encoder(ents)

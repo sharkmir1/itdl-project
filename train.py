@@ -36,7 +36,7 @@ def train(model, o, dataset, args):
             if count % 100 == 99:
                 print(ex, "of like 40k -- current avg loss ", (loss / ex))
             batch = dataset.collate_fn(batch)
-            p, z, planlogits = model(batch)  # p: (batch_size, max abstract len, target vocab size + max entity num)
+            p, z = model(batch)  # p: (batch_size, max abstract len, target vocab size + max entity num)
             p = p[:, :-1, :].contiguous()  # exclude last words from each abstract
 
             tgt = batch.tgt[:, 1:].contiguous().view(-1).to(args.device)  # exclude first word from each target
@@ -52,26 +52,27 @@ def train(model, o, dataset, args):
     if loss < 100: print(" PPL: ", exp(loss))
 
 
-def evaluate(m, ds, args):
+def evaluate(model, dataset, args):
     print("Evaluating", end="\t")
-    m.eval()
+    model.eval()
     loss = 0
     ex = 0
-    for b in ds.val_iter:
-        b = ds.collate_fn(b)
-        p, z, planlogits = m(b)
+    for b in dataset.val_iter:
+        b = dataset.collate_fn(b)
+        p, z = model(b)
         p = p[:, :-1, :]
         tgt = b.tgt[:, 1:].contiguous().view(-1).to(args.device)
         l = F.nll_loss(p.contiguous().view(-1, p.size(2)), tgt, ignore_index=1)
         if ex == 0:
             g = p[0].max(1)[1]
-            print(ds.create_sentence(g, b.rawent))
+            print(dataset.create_sentence(g, b.rawent))
         loss += l.item() * len(b.tgt)
         ex += len(b.tgt)
     loss = loss / ex
     print("VAL LOSS: ", loss, end="\t")
-    if loss < 100: print(" PPL: ", exp(loss))
-    m.train()
+    if loss < 100:
+        print(" PPL: ", exp(loss))
+    model.train()
     return loss
 
 

@@ -75,7 +75,8 @@ class GraphEncoder(nn.Module):
         node_embeddings = torch.stack([self.pad(x, max(graph_size_vec)) for x in graphs], 0)  # (batch_size, max N, 500)
         graph_size_vec = torch.LongTensor(graph_size_vec)
 
-        mask = torch.arange(0, node_embeddings.size(1)).unsqueeze(0).repeat(node_embeddings.size(0), 1).long()
+        mask = torch.arange(0, node_embeddings.size(1)).unsqueeze(0).repeat(node_embeddings.size(0), 1)
+        mask = mask.long().to(self.args.device)
         mask = (mask <= graph_size_vec.unsqueeze(1))  # (batch_size, max N) / 각 adj_matrix의 size + 1보다 작은 부분만 1
 
         return global_node_vec, node_embeddings, mask
