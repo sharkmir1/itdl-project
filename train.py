@@ -30,7 +30,6 @@ def train(model, o, dataset, args):
 
     for idx, train_iter in train_order:
         print(f"Training on {idx}")
-
         for count, batch in enumerate(train_iter):
             if count % 100 == 99:
                 print(ex, "of like 40k -- current avg loss ", (loss / ex))

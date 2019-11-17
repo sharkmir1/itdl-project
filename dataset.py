@@ -160,7 +160,7 @@ class PaperDataset:
 
         batch.ent = (ent, ent_len_list, ent_num_list)
 
-        adj, rel = zip(*batch.rel)  # b.rel: (batch_size,) / list of x.rel
+        adj, rel = zip(*batch.rel)  # batch.rel: (batch_size,) / list of x.rel
         # adj: (batch_size,) / tuple of adjacency matrices per each dataset row
         # rel: (batch_size,) / tuple of list of relations per each dataset row
 

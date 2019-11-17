@@ -17,13 +17,13 @@ class Model(nn.Module):
         self.lstm = nn.LSTMCell(args.hsz * cat_times, args.hsz)
         self.entity_encoder = EntityEncoder(args)
         self.switch = nn.Linear(args.hsz * cat_times, 1)
-        self.attention = MultiHeadAttention(args.hsz, args.hsz, args.hsz, h=4, dropout_p=args.drop)
+        self.attention = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
         self.mat_attention = MatrixAttention(args.hsz * cat_times, args.hsz)
         self.graph_encoder = GraphEncoder(args)
 
         if args.title:
             self.title_encoder = LSTMEncoder(args, toks=args.input_vocab_size)
-            self.attention_title = MultiHeadAttention(args.hsz, args.hsz, args.hsz, h=4, dropout_p=args.drop)
+            self.attention_title = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
             # attn2: computes c_s (decoding-phase context vector for title)
 
         self.out = nn.Linear(args.hsz * cat_times, args.target_vocab_size)
@@ -38,15 +38,10 @@ class Model(nn.Module):
         ents = self.entity_encoder(ents)
         # ents: (batch_size (num of rows), max entity num, 500) / encoded hidden states of each entity in batch
 
-        if self.graph:
-            gents, glob, grels = self.graph_encoder(batch.rel[0], batch.rel[1], (ents, ent_num_list))
-            hx = glob  # this is the initial hidden state for decoding lstm
-            keys, mask = grels
-            mask = mask == 0  # (batch_size, max adj_matrix size) / 1 on relation vertices, else 0
-        else:
-            mask = self.create_mask(ents.size(), ent_num_list)
-            hx = ents.mean(dim=1)
-            keys = ents
+        glob, grels = self.graph_encoder(batch.rel[0], batch.rel[1], (ents, ent_num_list))
+        hx = glob  # this is the initial hidden state for decoding lstm
+        keys, mask = grels
+        mask = mask == 0  # (batch_size, max adj_matrix size) / 1 on relation vertices, else 0
         mask = mask.unsqueeze(1)
         planlogits = None
 
@@ -132,16 +127,11 @@ class Model(nn.Module):
         ents = self.entity_encoder(ents)
         # ents: (1, entity num, 500) / encoded hidden state of entities in b
 
-        if self.graph:
-            gents, glob, grels = self.graph_encoder(b.rel[0], b.rel[1], (ents, entlens))
-            hx = glob
-            # hx = ents.max(dim=1)[0]
-            keys, mask = grels
-            mask = mask == 0
-        else:
-            mask = self.create_mask(ents.size(), entlens)
-            hx = ents.max(dim=1)[0]
-            keys = ents
+        gents, glob, grels = self.graph_encoder(b.rel[0], b.rel[1], (ents, entlens))
+        hx = glob
+        # hx = ents.max(dim=1)[0]
+        keys, mask = grels
+        mask = mask == 0
         mask = mask.unsqueeze(1)
         planlogits = None
 
@@ -151,7 +141,7 @@ class Model(nn.Module):
             a2 = self.attention_title(hx.unsqueeze(1), tencs, mask=tmask).squeeze(1)  # (1, 500) / c_s
             a = torch.cat((a, a2), 1)  # (beam size, 1000) / c_t
 
-        outp = torch.LongTensor(ents.size(0), 1).fill_(self.starttok).cuda()  # initially, (1, 1) / start token
+        outp = torch.LongTensor(ents.size(0), 1).fill_(self.starttok)  # initially, (1, 1) / start token
         beam = None
         for i in range(self.maxlen):
             op = self.emb_w_vertex(outp.clone(), b.nerd)
@@ -215,9 +205,6 @@ class Model(nn.Module):
                 if self.args.title:
                     tencs = tencs[:len(beam.beam)]
                     tmask = tmask[:len(beam.beam)]
-                if self.args.plan:
-                    planplace = planplace[:len(beam.beam)]
-                    sorder = sorder[0] * len(beam.beam)
                 ents = ents[:len(beam.beam)]
                 entlens = entlens[:len(beam.beam)]
             outp = beam.getwords()  # (beam size,) / next word for each beam
