@@ -73,7 +73,7 @@ class GraphEncoder(nn.Module):
 
         graph_size_vec = [x.size(0) for x in graphs]
         node_embeddings = torch.stack([self.pad(x, max(graph_size_vec)) for x in graphs], 0)  # (batch_size, max N, 500)
-        graph_size_vec = torch.LongTensor(graph_size_vec)
+        graph_size_vec = torch.LongTensor(graph_size_vec).to(self.args.device)
 
         mask = torch.arange(0, node_embeddings.size(1)).unsqueeze(0).repeat(node_embeddings.size(0), 1)
         mask = mask.long().to(self.args.device)
