@@ -89,7 +89,7 @@ class PaperDataset:
         self.SORDER.is_target = False
         self.REL.is_target = False
         self.ENT.is_target = False
-        self.fields = [("src", self.INPUT), ("ent", self.ENT), ("nerd", self.ENT_TYPE), ("rel", self.REL), ("out", self.OUTPUT),
+        self.fields = [("title", self.INPUT), ("ent", self.ENT), ("nerd", self.ENT_TYPE), ("rel", self.REL), ("out", self.OUTPUT),
                        ("sorder", self.SORDER)]
         train = data.TabularDataset(path=args.path, format='tsv', fields=self.fields)
 
@@ -149,10 +149,16 @@ class PaperDataset:
         ent, ent_len_list = zip(*batch.ent)  # batch.ent: (batch_size,) / list of x.ent
         # ent: (batch_size,) / tuple of tensors sized (num of entity, longest entity len) per each dataset row
         # ent_len_list: (batch_size,) / tuple of (num of entity) per each dataset row i.e. 각 row의 각 entity의 토큰 개수
-        ent, ent_num_list = self.pad_entity(ent)
+        ent, ent_num_list = self.chunk_entity(ent)
         # ent: (sum of num of entities in each row, longest entity len)
         # ent_num_list: (batch_size,) / tensor of number of entities in each row
         ent = ent.to(self.args.device)
+        ent_num_list = ent_num_list.to(self.args.device)
+
+        ent_len_list = torch.cat(ent_len_list, 0).to(self.args.device)
+        # ent_len_list: (sum of num of entities in each row, ) / tensor of 각 entity의 단어 개수
+
+        batch.ent = (ent, ent_len_list, ent_num_list)
 
         adj, rel = zip(*batch.rel)  # b.rel: (batch_size,) / list of x.rel
         # adj: (batch_size,) / tuple of adjacency matrices per each dataset row
@@ -160,14 +166,12 @@ class PaperDataset:
 
         batch.rel = [self.list_to(adj), self.list_to(rel)]  # [[adj1, adj2, ...], [rel1, rel2, ...]]
 
-        ent_len_list = torch.cat(ent_len_list, 0).to(self.args.device)
-        # ent_len_list: (sum of num of entities in each row, ) / tensor of 각 entity의 단어 개수
-
-        ent_num_list = ent_num_list.to(self.args.device)
-        batch.ent = (ent, ent_len_list, ent_num_list)
         return batch
 
-    def pad_entity(self, ent):
+    def chunk_entity(self, ent):
+        """
+        Chunks entities in a batch into one tensor, and returns with 'each row's number of entity' tensor
+        """
         lens = [x.size(0) for x in ent]  # lens: list of # of entities in each dataset row
         m = max([x.size(1) for x in ent])  # m: longest entity len in the batch
         data = [self.pad(x.transpose(0, 1), m).transpose(0, 1) for x in ent]
@@ -239,7 +243,7 @@ class PaperDataset:
         dataset.fields["rawent"] = data.RawField()
         dataset.fields["rawent"].is_target = False
 
-        test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.src), train=False, sort=False)
+        test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False, sort=False)
         return test_iter
 
     def vectorize_entity(self, ex, field):

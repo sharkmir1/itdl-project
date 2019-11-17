@@ -7,17 +7,17 @@ from torch import nn
 from torch.nn import functional as F
 from dataset import PaperDataset
 from args import parse_args, set_args
-from models.newmodel import model
+from models.model import Model
 
 
 def update_lr(o, args, epoch):
     if epoch % args.lrstep == 0:
         o.param_groups[0]['lr'] = args.lrhigh
     else:
-        o.param_groups[0]['lr'] -= args.lrchange
+        o.param_groups[0]['lr'] -= args.lr_delta
 
 
-def train(m, o, ds, args):
+def train(model, o, dataset, args):
     """
     input words => indices all removed from tags / trained to output indexed tags
     target words => indices included
@@ -25,35 +25,27 @@ def train(m, o, ds, args):
     print("Training", end=" ")
     loss = 0
     ex = 0
-    trainorder = [('t1', ds.t1_iter), ('t2', ds.t2_iter), ('t3', ds.t3_iter)]
-    shuffle(trainorder)
-    for spl, train_iter in trainorder:
-        print(spl)
-        for count, b in enumerate(train_iter):
+    train_order = [('t1', dataset.t1_iter), ('t2', dataset.t2_iter), ('t3', dataset.t3_iter)]
+    shuffle(train_order)
+
+    for idx, train_iter in train_order:
+        print(f"Training on {idx}")
+
+        for count, batch in enumerate(train_iter):
             if count % 100 == 99:
                 print(ex, "of like 40k -- current avg loss ", (loss / ex))
-            b = ds.collate_fn(b)
-            p, z, planlogits = m(b)  # p: (batch_size, max abstract len, target vocab size + max entity num)
+            batch = dataset.collate_fn(batch)
+            p, z, planlogits = model(batch)  # p: (batch_size, max abstract len, target vocab size + max entity num)
             p = p[:, :-1, :].contiguous()  # exclude last words from each abstract
 
-            tgt = b.tgt[:, 1:].contiguous().view(-1).to(args.device)  # exclude first word from each target
-            l = F.nll_loss(p.contiguous().view(-1, p.size(2)), tgt, ignore_index=1) 
-            # copy coverage (each elt at least once)
-            if args.cl:
-                z = z.max(1)[0]
-                cl = nn.functional.mse_loss(z, torch.ones_like(z))
-                l = l + args.cl * cl
-            if args.plan:
-                pl = nn.functional.cross_entropy(planlogits.view(-1, planlogits.size(2)), b.sordertgt[0].view(-1),
-                                                 ignore_index=1)
-                l = l + args.plweight * pl
-
-            l.backward()
-            nn.utils.clip_grad_norm_(m.parameters(), args.clip)
-            loss += l.item() * len(b.tgt)
+            tgt = batch.tgt[:, 1:].contiguous().view(-1).to(args.device)  # exclude first word from each target
+            loss = F.nll_loss(p.contiguous().view(-1, p.size(2)), tgt, ignore_index=1)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+            loss += loss.item() * len(batch.tgt)
             o.step()
             o.zero_grad()
-            ex += len(b.tgt)
+            ex += len(batch.tgt)
     loss = loss / ex
     print("AVG TRAIN LOSS: ", loss, end="\t")
     if loss < 100: print(" PPL: ", exp(loss))
@@ -90,7 +82,7 @@ def main(args):
         os.mkdir(args.save)
     ds = PaperDataset(args)
     args = set_args(args, ds)
-    m = model(args)
+    m = Model(args)
     print(args.device)
     m = m.to(args.device)
     if args.ckpt:

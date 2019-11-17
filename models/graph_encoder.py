@@ -1,8 +1,6 @@
 import torch
 import math
 from torch import nn
-from torch.nn import functional as F
-from models.graphAttn import GAT
 from models.attention import MultiHeadAttention
 
 
@@ -31,14 +29,14 @@ class Block(nn.Module):
         return q  # V_tilde in paper / (adj_len ( = # of entities + # of relations), 500)
 
 
-class graph_encode(nn.Module):
+class GraphEncoder(nn.Module):
     """
-    Graph Transformer => refer to fig.4 in original paper
+    Graph Transformer
     """
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.renc = nn.Embedding(args.rtoks, args.hsz)
+        self.renc = nn.Embedding(args.relation_vocab_size, args.hsz)
         nn.init.xavier_normal_(self.renc.weight)
 
         if args.model == "gat":
@@ -48,7 +46,6 @@ class graph_encode(nn.Module):
         else:
             self.gat = nn.ModuleList([Block(args) for _ in range(args.prop)])
         self.prop = args.prop
-        self.sparse = args.sparse
 
     def pad(self, tensor, length):
         return torch.cat([tensor, tensor.new(length - tensor.size(0), *tensor.size()[1:]).fill_(0)])
@@ -75,28 +72,14 @@ class graph_encode(nn.Module):
             vgraph = torch.cat((vents[i][:entlens[i]], vrels[i]), 0)
             # vgraph: (# of entities + # of relations, 500) / cat(embedding(entities), embedding(relations))
             N = vgraph.size(0)  # adj_matrix size
-            if self.sparse:
-                lens = [len(x) for x in adj]
-                m = max(lens)
-                mask = torch.arange(0, m).unsqueeze(0).repeat(len(lens), 1).long()
-                mask = (mask <= torch.LongTensor(lens).unsqueeze(1)).cuda()
-                mask = (mask == 0).unsqueeze(1)
-            else:
-                mask = (adj == 0).unsqueeze(1)
+            mask = (adj == 0).unsqueeze(1)
             for j in range(self.prop):
-                if self.sparse:
-                    ngraph = [vgraph[k] for k in adj]
-                    ngraph = [self.pad(x, m) for x in ngraph]
-                    ngraph = torch.stack(ngraph, 0)
-                    # print(ngraph.size(),vgraph.size(),mask.size())
-                    vgraph = self.gat[j](vgraph.unsqueeze(1), ngraph, mask)
-                else:
-                    ngraph = torch.tensor(vgraph.repeat(N, 1).view(N, N, -1), requires_grad=False)
-                    # ngraph: (N, N, 500) / cat of vgraph N times
-                    vgraph = self.gat[j](vgraph.unsqueeze(1), ngraph, mask)  # (N, 500)
-                    if self.args.model == 'gat':
-                        vgraph = vgraph.squeeze(1)
-                        vgraph = self.gatact(vgraph)
+                ngraph = torch.tensor(vgraph.repeat(N, 1).view(N, N, -1), requires_grad=False)
+                # ngraph: (N, N, 500) / cat of vgraph N times
+                vgraph = self.gat[j](vgraph.unsqueeze(1), ngraph, mask)  # (N, 500)
+                if self.args.model == 'gat':
+                    vgraph = vgraph.squeeze(1)
+                    vgraph = self.gatact(vgraph)
             graphs.append(vgraph)
             glob.append(vgraph[entlens[i]])  # append each global node's embedding
         elens = [x.size(0) for x in graphs]

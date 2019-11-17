@@ -3,16 +3,15 @@ import argparse
 
 
 def set_args(args, ds):
-    args.ntoks = len(ds.OUTP.vocab)
-    args.tgttoks = len(ds.TGT.vocab)
-    args.ninput = len(ds.INP.vocab)
-    args.vtoks = len(ds.ENT.itos)
-    args.rtoks = len(ds.REL.itos)
-    args.starttok = ds.OUTP.vocab.stoi["<start>"]
-    args.dottok = ds.OUTP.vocab.stoi["."]
+    args.output_vocab_size = len(ds.OUTPUT.vocab)
+    args.target_vocab_size = len(ds.TARGET.vocab)
+    args.input_vocab_size = len(ds.INPUT.vocab)
+    args.entity_vocab_size = len(ds.ENT.itos)
+    args.relation_vocab_size = len(ds.REL.itos)
+    args.start_token = ds.OUTPUT.vocab.stoi["<start>"]
     args.ent_vocab = ds.ENT.itos
-    args.inp_vocab = ds.INP.vocab.itos
-    args.lrchange = (args.lrhigh - args.lr) / args.lrstep
+    args.inp_vocab = ds.INPUT.vocab.itos
+    args.lr_delta = (args.lrhigh - args.lr) / args.lrstep
     args.esz = args.hsz  # embedding size == hidden size
     return args
 
@@ -78,10 +77,9 @@ def parse_args():
     parser.add_argument("-plweight", default=0.2, type=float)
     parser.add_argument("-entdetach", action='store_true')
 
-    parser.add_argument("-gpu", default=0)
     args = parser.parse_args()
-    args.gpu = "cpu" if args.gpu == -1 else "cuda:" + str(args.gpu)
+    args.gpu = "cuda:0" if torch.cuda.is_available() else "cpu"
     args.device = torch.device(args.gpu)
-    torch.cuda.set_device(args.device)
+    # torch.cuda.set_device(args.gpu)
 
     return args

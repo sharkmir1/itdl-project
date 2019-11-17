@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MatrixAttn(nn.Module):
+class MatrixAttention(nn.Module):
 
     def __init__(self, linin, linout):
         super().__init__()

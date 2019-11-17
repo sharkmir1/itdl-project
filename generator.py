@@ -2,7 +2,7 @@ import torch
 import argparse
 from time import time
 from dataset import PaperDataset
-from models.newmodel import model
+from models.model import Model
 from args import parse_args, set_args
 from tqdm import tqdm
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     args.eval = True
     ds = PaperDataset(args)
     args = set_args(args, ds)
-    m = model(args)
+    m = Model(args)
     cpt = torch.load(args.save)
     m.load_state_dict(cpt)
     m = m.to(args.device)
