@@ -4,13 +4,14 @@ import torch.nn.functional as F
 
 
 class SingleHeadAttention(nn.Module):
-    def __init__(self, query_dim, key_dim):
+    def __init__(self, query_dim, key_dim, device):
         super().__init__()
         self.linear = nn.Linear(query_dim, key_dim)
+        self.device = device
 
     def forward(self, context, ent):
         ent, entity_num_list = ent  # ent: (batch_size , max entity num, 500), entity_num_list: (batch_size,)
-        mask = torch.arange(0, ent.size(1)).unsqueeze(0).repeat(ent.size(0), 1)
+        mask = torch.arange(0, ent.size(1)).unsqueeze(0).repeat(ent.size(0), 1).to(self.device)
         mask = (mask >= entity_num_list.unsqueeze(1)).unsqueeze(1)  # (batch_size, max entity num)
         context = self.linear(context)  # (batch_size, max abstract len, 500) => scale context to match entity dimension
         attn = torch.bmm(context, ent.transpose(1, 2))  # (b_size, max abstract len, max entity num) / compute QK^T

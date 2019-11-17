@@ -26,7 +26,7 @@ class Model(nn.Module):
         self.attention_graph = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
         # attention_graph: compute c_g (decoding-phase context vector for graph)
 
-        self.mat_attention = SingleHeadAttention(args.hsz * cat_times, args.hsz)
+        self.mat_attention = SingleHeadAttention(args.hsz * cat_times, args.hsz, args.device)
         self.switch = nn.Linear(args.hsz * cat_times, 1)
         self.out = nn.Linear(args.hsz * cat_times, args.target_vocab_size)
 
