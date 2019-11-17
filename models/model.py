@@ -147,10 +147,10 @@ class Model(nn.Module):
             # (1, 500) / c_s
             context = torch.cat((context, title_context), 1)  # (beam size, 1000) / cat of c_g, c_s
 
-        outp = torch.LongTensor(ents.size(0), 1).fill_(self.starttok)  # initially, (1, 1) / start token
+        recent_token = torch.LongTensor(ents.size(0), 1).fill_(self.starttok)  # initially, (1, 1) / start token
         beam = None
         for i in range(self.args.maxlen):
-            op = self.trim_entity_index(outp.clone(), batch.nerd)
+            op = self.trim_entity_index(recent_token.clone(), batch.nerd)
             # previous token을 만들기 위해 tag로부터 index를 없애는 작업
             # 없애는 이유: train할 때도 output vocab (input) => target vocab (output) 으로 train 되었기 때문.
             op = self.embed(op).squeeze(1)  # (beam size, 500)
@@ -195,6 +195,7 @@ class Model(nn.Module):
                 ents = ents.repeat(len(beam.beam), 1, 1)  # (beam size, entity num, 500)
                 ent_num_list = ent_num_list.repeat(len(beam.beam))  # (beam size,)
             else:
+                # if all beam nodes have ended, stop generating
                 if not beam.update(scores, words, hx, cx, context):
                     break
                 # if beam size changes (i.e. any of beam ends), change size of weight matrices accordingly
@@ -205,7 +206,7 @@ class Model(nn.Module):
                     title_mask = title_mask[:len(beam.beam)]
                 ents = ents[:len(beam.beam)]
                 ent_num_list = ent_num_list[:len(beam.beam)]
-            outp = beam.getwords()  # (beam size,) / next word for each beam
+            recent_token = beam.getwords()  # (beam size,) / next word for each beam
             hx = beam.get_h()  # (beam size, 500)
             cx = beam.get_c()  # (beam size, 500)
             context = beam.get_context()  # (beam size, 1000)

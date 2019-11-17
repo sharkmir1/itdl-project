@@ -65,7 +65,7 @@ def evaluate(m, ds, args):
         l = F.nll_loss(p.contiguous().view(-1, p.size(2)), tgt, ignore_index=1)
         if ex == 0:
             g = p[0].max(1)[1]
-            print(ds.reverse(g, b.rawent))
+            print(ds.create_sentence(g, b.rawent))
         loss += l.item() * len(b.tgt)
         ex += len(b.tgt)
     loss = loss / ex

@@ -91,7 +91,8 @@ class PaperDataset:
         self.SORDER.is_target = False
         self.REL.is_target = False
         self.ENT.is_target = False
-        self.fields = [("title", self.INPUT), ("ent", self.ENT), ("nerd", self.ENT_TYPE), ("rel", self.REL), ("out", self.OUTPUT),
+        self.fields = [("title", self.INPUT), ("ent", self.ENT), ("nerd", self.ENT_TYPE), ("rel", self.REL),
+                       ("out", self.OUTPUT),
                        ("sorder", self.SORDER)]
         train = data.TabularDataset(path=args.path, format='tsv', fields=self.fields)
 
@@ -245,7 +246,8 @@ class PaperDataset:
         dataset.fields["rawent"] = data.RawField()
         dataset.fields["rawent"].is_target = False
 
-        test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False, sort=False)
+        test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False,
+                                  sort=False)
         return test_iter
 
     def vectorize_entity(self, ex, field):
@@ -261,14 +263,14 @@ class PaperDataset:
     def pad(self, tensor, length, ent=1):
         return torch.cat([tensor, tensor.new(length - tensor.size(0), *tensor.size()[1:]).fill_(ent)])
 
-    def reverse(self, x, ents):
+    def create_sentence(self, words, ents):
         ents = ents[0]
         vocab = self.TARGET.vocab
-        s = ' '.join(
-            [vocab.itos[y] if y < len(vocab.itos) else ents[y - len(vocab.itos)].upper() for j, y in enumerate(x)])
+        string = ' '.join([vocab.itos[word] if word < len(vocab.itos)
+                           else ents[word - len(vocab.itos)].upper()
+                           for word in words])
 
-        if "<eos>" in s: s = s.split("<eos>")[0]
-        return s
+        return string.split("<eos>")[0] if "<eos>" in string else string
 
 
 if __name__ == "__main__":

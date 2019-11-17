@@ -62,7 +62,7 @@ class Beam:
         """
         :return: last word of each beam
         """
-        return torch.LongTensor([[x.words[-1]] for x in self.beam]).to(self.device)
+        return torch.tensor([[x.words[-1]] for x in self.beam]).long().to(self.device)
 
     def get_h(self):
         return torch.cat([x.h for x in self.beam], dim=0)
