@@ -3,22 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MatrixAttention(nn.Module):
-
-    def __init__(self, linin, linout):
+class SingleHeadAttention(nn.Module):
+    def __init__(self, query_dim, key_dim):
         super().__init__()
-        self.attnlin = nn.Linear(linin, linout)
+        self.linear = nn.Linear(query_dim, key_dim)
 
-    def forward(self, dec, emb):
-        emb, elen = emb  # emb: (batch_size , max entity num, 500), elen: (batch_size,)
-        emask = torch.arange(0, emb.size(1)).unsqueeze(0).repeat(emb.size(0), 1).long() #.cuda()
-        emask = (emask >= elen.unsqueeze(1)).unsqueeze(1)  # (batch_size, max entity num)
-        decsmall = self.attnlin(dec)  # (batch_size, max abstract len, 500)
-        unnorm = torch.bmm(decsmall, emb.transpose(1, 2))  # (b_size, max abstract len, max entity num) / compute QK^T
-        unnorm.masked_fill_(emask, -float('inf'))
-        attn = F.softmax(unnorm, dim=2)
-        out = torch.bmm(attn, emb)
-        return out, attn  # attn: (b_size, max_abstract_len, max_entity_num) / entities attended on each abstract word
+    def forward(self, context, ent):
+        ent, entity_num_list = ent  # ent: (batch_size , max entity num, 500), entity_num_list: (batch_size,)
+        mask = torch.arange(0, ent.size(1)).unsqueeze(0).repeat(ent.size(0), 1)
+        mask = (mask >= entity_num_list.unsqueeze(1)).unsqueeze(1)  # (batch_size, max entity num)
+        context = self.linear(context)  # (batch_size, max abstract len, 500) => scale context to match entity dimension
+        attn = torch.bmm(context, ent.transpose(1, 2))  # (b_size, max abstract len, max entity num) / compute QK^T
+        attn.masked_fill_(mask, -float('inf'))
+        attn = F.softmax(attn, dim=2)
+        return attn  # attn: (b_size, max_abstract_len, max_entity_num) / entities attended on each abstract word
 
 
 class MultiHeadAttention(nn.Module):

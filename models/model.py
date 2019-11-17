@@ -1,11 +1,10 @@
 import torch
 from torch import nn
-from models.attention import MultiHeadAttention, MatrixAttention
+from models.attention import MultiHeadAttention, SingleHeadAttention
 from models.sequence_encoder import EntityEncoder, LSTMEncoder
 from models.graph_encoder import GraphEncoder
 from models.beam import Beam
 
-import ipdb
 
 class Model(nn.Module):
     def __init__(self, args):
@@ -13,75 +12,79 @@ class Model(nn.Module):
         self.args = args
         cat_times = 3 if args.title else 2
         self.embed = nn.Embedding(args.output_vocab_size, args.hsz)
-
-        self.lstm = nn.LSTMCell(args.hsz * cat_times, args.hsz)
         self.entity_encoder = EntityEncoder(args)
-        self.switch = nn.Linear(args.hsz * cat_times, 1)
-        self.attention = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
-        self.mat_attention = MatrixAttention(args.hsz * cat_times, args.hsz)
         self.graph_encoder = GraphEncoder(args)
 
         if args.title:
             self.title_encoder = LSTMEncoder(args, toks=args.input_vocab_size)
             self.attention_title = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
-            # attn2: computes c_s (decoding-phase context vector for title)
+            # attention_title: computes c_s (decoding-phase context vector for title)
 
+        self.decoder = nn.LSTMCell(args.hsz * cat_times, args.hsz)
+        self.attention_graph = MultiHeadAttention(args, h=4, dropout_prob=args.drop)
+        # attention_graph: compute c_g (decoding-phase context vector for graph)
+
+        self.mat_attention = SingleHeadAttention(args.hsz * cat_times, args.hsz)
+        self.switch = nn.Linear(args.hsz * cat_times, 1)
         self.out = nn.Linear(args.hsz * cat_times, args.target_vocab_size)
 
     def forward(self, batch):
         if self.args.title:
             title_embedding, _ = self.title_encoder(batch.title)  # (batch_size, title_len, 500)
             title_mask = self.create_mask(title_embedding.size(), batch.title[1]).unsqueeze(1)  # (batch_size, 1, title_len)
-        outp, _ = batch.out  # (batch_size, max abstract len) / all tag indices removed
+        output, _ = batch.out  # (batch_size, max abstract len) / all tag indices removed
         ents = batch.ent  # tuple of (ent, ent_len_list, ent_num_list) / refer to collate_fn in dataset.py
         ent_num_list = ents[2]
         ents = self.entity_encoder(ents)
         # ents: (batch_size (num of rows), max entity num, 500) / encoded hidden states of each entity in batch
 
-        glob, grels = self.graph_encoder(batch.rel[0], batch.rel[1], (ents, ent_num_list))
-        hx = glob  # this is the initial hidden state for decoding lstm
-        keys, mask = grels
-        mask = mask == 0  # (batch_size, max adj_matrix size) / 1 on relation vertices, else 0
-        mask = mask.unsqueeze(1)
-        planlogits = None
+        glob, node_embeddings, node_mask = self.graph_encoder(batch.rel[0], batch.rel[1], (ents, ent_num_list))
+        hx = glob  # this is the initial hidden state for the decoding LSTM
+        node_mask = node_mask == 0  # (batch_size, max adj_matrix size) / 1 on relation vertices, else 0
+        node_mask = node_mask.unsqueeze(1)
 
         cx = torch.tensor(hx)  # (batch_size, 500)
-        a = torch.zeros_like(hx)
+        context = torch.zeros_like(hx)
         if self.args.title:
-            a2 = self.attention_title(hx.unsqueeze(1), title_embedding, mask=title_mask).squeeze(1)
-            # a2: (batch_size, 500) / c_s, context vector for each title
-            a = torch.cat((a, a2), 1)
-            # a: (batch_size, 1000) / cat of c_g, c_s (c_g computed below)
+            title_context = self.attention_title(hx.unsqueeze(1), title_embedding, mask=title_mask).squeeze(1)
+            # (batch_size, 500) / c_s, context vector for each title
+            context = torch.cat((context, title_context), 1)
+            # (batch_size, 1000) / cat of c_g, c_s (c_g computed below)
 
-        e = self.embed(outp).transpose(0, 1)  # (max abstract len, batch_size, 500)
+        e = self.embed(output).transpose(0, 1)  # (max abstract len, batch_size, 500)
         outputs = []
         for i, k in enumerate(e):
             # k: (batch_Size, 500) / i_th keyword's embedding in the target abstract
 
-            prev = torch.cat((a, k), 1)  # (batch_size, 1500)
-            hx, cx = self.lstm(prev, (hx, cx))  # compute new hx, cx with current (hx, cx, input abstract word)
-            a = self.attention(hx.unsqueeze(1), keys, mask=mask).squeeze(1)
-            # a: (batch_size, 500) / c_g, context vector for each graph (equation 6,7 in paper)
+            # for teacher-forcing, always include gold abstract word as prev in training
+            prev = torch.cat((context, k), 1)  # (batch_size, 1500)
+            hx, cx = self.decoder(prev, (hx, cx))  # compute new hx, cx with current (hx, cx, input abstract word)
+            context = self.attention_graph(hx.unsqueeze(1), node_embeddings, mask=node_mask).squeeze(1)
+            # graph_context: (batch_size, 500) / c_g, context vector for each graph (E6, E7)
             if self.args.title:
-                a2 = self.attention_title(hx.unsqueeze(1), title_embedding, mask=title_mask).squeeze(1)
-                # a2: (batch_size, 500) / c_s, context vector for each title
-                a = torch.cat((a, a2), 1)
-                # a: (batch_size, 1000) / cat of c_g, c_s (c_g computed below)
+                title_context = self.attention_title(hx.unsqueeze(1), title_embedding, mask=title_mask).squeeze(1)
+                # title_context: (batch_size, 500) / c_s, context vector for each title
+                context = torch.cat((context, title_context), 1)
+                # whole context: (batch_size, 1000) / cat of c_g, c_s
 
-            out = torch.cat((hx, a), 1)  # (batch_size, 1500) / [ h_t || c_t ] in paper
+            out = torch.cat((hx, context), 1)  # (batch_size, 1500) / [ h_t || c_t ]
             outputs.append(out)
-        l = torch.stack(outputs, 1)  # (batch_size, max abstract len, 1500)
-        s = torch.sigmoid(self.switch(l))  # (batch_size, max abstract len, 1) / 1-p (p in equation 8 in paper)
-        o = self.out(l)  # (batch_size, max abstract len, target vocab size)
-        o = torch.softmax(o, 2)
-        o = s * o
-        # compute copy attn
-        _, z = self.mat_attention(l, (ents, ent_num_list))
+
+        outputs = torch.stack(outputs, 1)  # (batch_size, max abstract len, 1500)
+        sampling_prob = torch.sigmoid(self.switch(outputs))
+        # (batch_size, max abstract len, 1) / computes 1-p (E8)
+
+        out = self.out(outputs)  # (batch_size, max abstract len, target vocab size)
+        out = torch.softmax(out, 2)
+        out = sampling_prob * out
+
+        # compute copy attention
+        z = self.mat_attention(outputs, (ents, ent_num_list))
         # z: (batch_size, max_abstract_len, max_entity_num) / entities attended on each abstract word, then softmaxed
-        z = (1 - s) * z
-        o = torch.cat((o, z), 2)
-        o = o + (1e-6 * torch.ones_like(o))  # add epsilon to avoid underflow
-        return o.log(), z, planlogits
+        z = (1 - sampling_prob) * z
+        out = torch.cat((out, z), 2)
+        out = out + (1e-6 * torch.ones_like(out))  # add epsilon to avoid underflow
+        return out.log(), z
 
     def create_mask(self, size, l):
         """
@@ -136,7 +139,7 @@ class Model(nn.Module):
         planlogits = None
 
         cx = torch.tensor(hx)  # (beam size, 500)
-        a = self.attention(hx.unsqueeze(1), keys, mask=mask).squeeze(1)  # (1, 500) / c_g
+        a = self.attention_graph(hx.unsqueeze(1), keys, mask=mask).squeeze(1)  # (1, 500) / c_g
         if self.args.title:
             a2 = self.attention_title(hx.unsqueeze(1), tencs, mask=tmask).squeeze(1)  # (1, 500) / c_s
             a = torch.cat((a, a2), 1)  # (beam size, 1000) / c_t
@@ -158,8 +161,8 @@ class Model(nn.Module):
                             mask[j][0][sorder[j][planplace[j]]] = 1
             op = self.embed(op).squeeze(1)  # (beam size, 500)
             prev = torch.cat((a, op), 1)  # (beam size, 1000)
-            hx, cx = self.lstm(prev, (hx, cx))
-            a = self.attention(hx.unsqueeze(1), keys, mask=mask).squeeze(1)
+            hx, cx = self.decoder(prev, (hx, cx))
+            a = self.attention_graph(hx.unsqueeze(1), keys, mask=mask).squeeze(1)
             if self.args.title:
                 a2 = self.attention_title(hx.unsqueeze(1), tencs, mask=tmask).squeeze(1)
                 a = torch.cat((a, a2), 1)  # (beam size, 1000)

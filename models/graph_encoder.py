@@ -53,7 +53,7 @@ class GraphEncoder(nn.Module):
         ent_vec, entity_num = ent_vec
 
         rel_vec = [self.relation_embed(x) for x in rels]  # list of (num of relations, 500) per row in batch
-        global_node_embed = []
+        global_node_vec = []
         graphs = []
 
         for i, adj in enumerate(adjs):
@@ -68,8 +68,8 @@ class GraphEncoder(nn.Module):
                 query_graph = self.blocks[j](query_graph.unsqueeze(1), key_graph, mask)  # (N, 500)
 
             graphs.append(query_graph)
-            global_node_embed.append(query_graph[entity_num[i]])  # append each global node's embedding
-        global_node_embed = torch.stack(global_node_embed, 0)  # (batch_size, 500)
+            global_node_vec.append(query_graph[entity_num[i]])  # append each global node's embedding
+        global_node_vec = torch.stack(global_node_vec, 0)  # (batch_size, 500)
 
         graph_size_vec = [x.size(0) for x in graphs]
         node_embeddings = torch.stack([self.pad(x, max(graph_size_vec)) for x in graphs], 0)  # (batch_size, max N, 500)
@@ -78,4 +78,4 @@ class GraphEncoder(nn.Module):
         mask = torch.arange(0, node_embeddings.size(1)).unsqueeze(0).repeat(node_embeddings.size(0), 1).long()
         mask = (mask <= graph_size_vec.unsqueeze(1))  # (batch_size, max N) / 각 adj_matrix의 size + 1보다 작은 부분만 1
 
-        return global_node_embed, (node_embeddings, mask)
+        return global_node_vec, node_embeddings, mask
