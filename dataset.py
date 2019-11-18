@@ -87,13 +87,10 @@ class PaperDataset:
         self.ENT_TYPE = data.Field(sequential=True, batch_first=True, eos_token="<eos>")  # Entity Type
         self.ENT = data.RawField()  # Entity
         self.REL = data.RawField()  # Relation between entities
-        self.SORDER = data.RawField()
-        self.SORDER.is_target = False
         self.REL.is_target = False
         self.ENT.is_target = False
         self.fields = [("title", self.INPUT), ("ent", self.ENT), ("nerd", self.ENT_TYPE), ("rel", self.REL),
-                       ("out", self.OUTPUT),
-                       ("sorder", self.SORDER)]
+                       ("out", self.OUTPUT)]
         train = data.TabularDataset(path=args.path, format='tsv', fields=self.fields)
 
         print('Building Vocab... ', end='')
@@ -231,13 +228,11 @@ class PaperDataset:
         path = args.path.replace("train", 'test')
         fields = self.fields
         dataset = data.TabularDataset(path=path, format='tsv', fields=fields)
-        dataset.fields["rawent"] = data.RawField()
-        dataset.fields["rawent"].is_target = False
 
         for row in dataset:
             row.rawent = row.ent.split(" ; ")
             row.ent = self.vectorize_entity(row.ent, self.ENT)
-            # x.ent: tuple of ((# of entities in x, max entity len), (# of entities))
+            # row.ent: tuple of ((# of entities in x, max entity len), (# of entities))
             row.rel = self.make_graph(row.rel, len(row.ent[1]))
             # x.rel: tuple of (adj, rel)
 

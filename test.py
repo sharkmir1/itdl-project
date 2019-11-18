@@ -8,7 +8,7 @@ from tqdm import tqdm
 def test(args, dataset, model):
     model.eval()
     test_iter = dataset.make_test(args)
-    result = open("../outputs/" + model + ".inputs.beam_predictions.cmdline", 'w')
+    result = open("../outputs/" + args.save.split("/")[-1] + ".inputs.beam_predictions.cmdline", 'w')
     preds = []
     golds = []
     for idx, batch in tqdm(enumerate(test_iter)):
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     model.load_state_dict(state_dict)
     model = model.to(args.device)
     model.args = args
-    model.maxlen = args.max
+    model.maxlen = args.maxlen
     model.starttok = dataset.OUTPUT.vocab.stoi['<start>']
     model.endtok = dataset.OUTPUT.vocab.stoi['<eos>']
     model.eostok = dataset.OUTPUT.vocab.stoi['.']
