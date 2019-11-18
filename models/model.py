@@ -5,8 +5,6 @@ from models.sequence_encoder import EntityEncoder, LSTMEncoder
 from models.graph_encoder import GraphEncoder
 from models.beam import Beam
 
-import ipdb
-
 
 class Model(nn.Module):
     def __init__(self, args):
@@ -138,7 +136,7 @@ class Model(nn.Module):
         node_mask = node_mask == 0
         node_mask = node_mask.unsqueeze(1)
 
-        cx = torch.tensor(hx)  # (beam size, 500)
+        cx = hx.clone().detach().requires_grad_(True)  # (beam size, 500)
         context = self.attention_graph(hx.unsqueeze(1), node_embeddings, mask=node_mask).squeeze(1)
         # (1, 500) / c_g
         if self.args.title:

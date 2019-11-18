@@ -63,7 +63,7 @@ class GraphEncoder(nn.Module):
             mask = (adj == 0).unsqueeze(1)
 
             for j in range(self.args.transformer_num):
-                key_graph = torch.tensor(query_graph.repeat(size, 1).view(size, size, -1), requires_grad=False)
+                key_graph = query_graph.repeat(size, 1).view(size, size, -1).clone().detach().requires_grad_(False)
                 # key_graph: (N, N, 500) / cat of query_graph N times
                 query_graph = self.blocks[j](query_graph.unsqueeze(1), key_graph, mask)  # (N, 500)
 
