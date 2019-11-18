@@ -14,16 +14,6 @@ class PaperDataset:
         self.args = args
         self.make_vocab(args)
 
-        print("\nVocab Sizes")
-        for x in self.fields:
-            try:
-                print(x[0], len(x[1].vocab))
-            except:
-                try:
-                    print(x[0], len(x[1].itos))
-                except:
-                    pass
-
     def build_ent_vocab(self, path):
         ents = ""
 
