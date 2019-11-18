@@ -146,7 +146,8 @@ class Model(nn.Module):
             # (1, 500) / c_s
             context = torch.cat((context, title_context), 1)  # (beam size, 1000) / cat of c_g, c_s
 
-        recent_token = torch.LongTensor(ents.size(0), 1).fill_(self.starttok)  # initially, (1, 1) / start token
+        recent_token = torch.LongTensor(ents.size(0), 1).fill_(self.starttok).to(self.args.device)
+        # recent_token: initially, (1, 1) / start token
         beam = None
         for i in range(self.args.maxlen):
             op = self.trim_entity_index(recent_token.clone(), batch.nerd)
