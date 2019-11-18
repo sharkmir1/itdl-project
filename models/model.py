@@ -160,15 +160,15 @@ class Model(nn.Module):
                 title_context = self.attention_title(hx.unsqueeze(1), title_encoding, mask=title_mask).squeeze(1)
                 context = torch.cat((context, title_context), 1)  # (beam size, 1000)
 
-            out = torch.cat((hx, context), 1).unsqueeze(1)  # (beam size, 1, 1500)
-            sampling_prob = torch.sigmoid(self.switch(out))  # (beam size, 1, 1)
+            total_context = torch.cat((hx, context), 1).unsqueeze(1)  # (beam size, 1, 1500)
+            sampling_prob = torch.sigmoid(self.switch(total_context))  # (beam size, 1, 1)
 
-            out = self.out(out)  # (beam size, 1, target vocab size)
+            out = self.out(total_context)  # (beam size, 1, target vocab size)
             out = torch.softmax(out, 2)
             out = sampling_prob * out
 
             # compute copy attention
-            z = self.mat_attention(out, (ents, ent_num_list))
+            z = self.mat_attention(total_context, (ents, ent_num_list))
             # z: (1,  max_abstract_len, max_entity_num) / entities attended on each abstract word, then softmaxed
 
             z = (1 - sampling_prob) * z
