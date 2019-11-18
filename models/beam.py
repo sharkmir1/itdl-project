@@ -54,8 +54,8 @@ class Beam:
         new_node.words = [word for word in node.words]
         new_node.score = node.score
         new_node.prevent = node.prevent
-        new_node.init_words = [word for word in node.firstwords]
-        new_node.just_started = node.isstart
+        new_node.init_words = [word for word in node.init_words]
+        new_node.just_started = node.just_started
         return new_node
 
     def getwords(self):

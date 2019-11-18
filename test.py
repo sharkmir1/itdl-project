@@ -15,8 +15,8 @@ def test(args, dataset, model):
         batch = dataset.collate_fn(batch)
 
         beam = model.beam_generate(batch, beam_size=4, k=6)
-        beam.sort()  # sort 'done' sequences by their scores
-        beam = dataset.create_sentence(beam.done[0].words, batch.rawent)
+        beam.sort()  # sort finished_nodes sequences by their scores
+        beam = dataset.create_sentence(beam.finished_nodes[0].words, batch.rawent)
         gold = dataset.create_sentence(batch.tgt[0][1:], batch.rawent)
         preds.append(beam.lower())
         golds.append(gold.lower())

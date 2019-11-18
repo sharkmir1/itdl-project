@@ -228,6 +228,8 @@ class PaperDataset:
         path = args.path.replace("train", 'test')
         fields = self.fields
         dataset = data.TabularDataset(path=path, format='tsv', fields=fields)
+        dataset.fields["rawent"] = data.RawField()
+        dataset.fields["rawent"].is_target = False
 
         for row in dataset:
             row.rawent = row.ent.split(" ; ")
@@ -240,8 +242,7 @@ class PaperDataset:
             row.out = [token.split("_")[0] + ">" if "_" in token else token for token in row.out]
 
         dataset.fields["tgt"] = self.TARGET
-        # dataset.fields["rawent"] = data.RawField()
-        # dataset.fields["rawent"].is_target = False
+
 
         test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False,
                                   sort=False)
