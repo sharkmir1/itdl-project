@@ -10,7 +10,7 @@ import ipdb
 class PaperDataset:
     def __init__(self, args):
         args.path = args.datadir + args.data
-        print("Loading Data from ", args.path)
+        print("Loading Data from ", args.datadir)
         self.args = args
         self.make_vocab(args)
 
