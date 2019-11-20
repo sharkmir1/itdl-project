@@ -4,6 +4,8 @@ from models.model import Model
 from args import parse_args, set_args
 from tqdm import tqdm
 
+from train import evaluate
+
 
 def test(args, dataset, model):
     model.eval()
@@ -41,5 +43,7 @@ if __name__ == "__main__":
     model.starttok = dataset.OUTPUT.vocab.stoi['<start>']
     model.endtok = dataset.OUTPUT.vocab.stoi['<eos>']
     model.eostok = dataset.OUTPUT.vocab.stoi['.']
-    preds, gold = test(args, dataset, model)
+    # preds, gold = test(args, dataset, model)
+
+    evaluate(model, dataset, args)
 

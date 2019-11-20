@@ -42,7 +42,8 @@ class LSTMEncoder(nn.Module):
         nn.init.xavier_normal_(self.embed.weight)
 
     def forward(self, inp):
-        sent, sent_len_list = inp  # l: (batch_size, title_len), ilens: (batch_size) / list of lengths of each title
+        sent, sent_len_list = inp
+        # sent: (batch_size, title_len), sent_len_list: (batch_size) / list of lengths of each title
         emb = self.embed(sent)
         emb = self.dropout(emb)
 
