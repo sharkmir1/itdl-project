@@ -9,6 +9,8 @@ from dataset import PaperDataset
 from args import parse_args, set_args
 from models.model import Model
 
+from tqdm import tqdm
+
 
 def update_lr(o, args, epoch):
     if epoch % args.lrstep == 0:
@@ -62,7 +64,7 @@ def evaluate(model, dataset, args):
     example_num = 0
 
     iterator = dataset.make_test(args) if args.eval else dataset.val_iter
-    for batch in iterator:
+    for batch in tqdm(iterator):
         batch = dataset.collate_fn(batch)
         out, _ = model(batch)
         out = out[:, :-1, :]

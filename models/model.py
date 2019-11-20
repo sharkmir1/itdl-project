@@ -43,7 +43,7 @@ class Model(nn.Module):
         node_mask = node_mask == 0  # (batch_size, max adj_matrix size) / 1 on relation vertices, else 0
         node_mask = node_mask.unsqueeze(1)
 
-        cx = torch.tensor(hx)  # (batch_size, 500)
+        hx.clone().detach().requires_grad_(True)  # (batch_size, 500)
         context = torch.zeros_like(hx)
         if self.args.title:
             title_context = self.attention_title(hx.unsqueeze(1), title_encoding, mask=title_mask).squeeze(1)
