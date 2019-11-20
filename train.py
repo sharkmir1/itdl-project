@@ -61,7 +61,8 @@ def evaluate(model, dataset, args):
     loss = 0
     example_num = 0
 
-    for batch in dataset.val_iter:
+    iterator = dataset.make_test(args) if args.eval else dataset.val_iter
+    for batch in iterator:
         batch = dataset.collate_fn(batch)
         out, _ = model(batch)
         out = out[:, :-1, :]
