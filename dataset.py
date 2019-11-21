@@ -233,7 +233,6 @@ class PaperDataset:
 
         dataset.fields["tgt"] = self.TARGET
 
-
         test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False,
                                   sort=False)
         return test_iter
