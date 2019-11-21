@@ -1,5 +1,4 @@
 import torch
-from collections import Counter
 from torchtext import data
 import args as arg
 from copy import copy

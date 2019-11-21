@@ -43,7 +43,7 @@ if __name__ == "__main__":
     model.starttok = dataset.OUTPUT.vocab.stoi['<start>']
     model.endtok = dataset.OUTPUT.vocab.stoi['<eos>']
     model.eostok = dataset.OUTPUT.vocab.stoi['.']
-    # preds, gold = test(args, dataset, model)
 
-    evaluate(model, dataset, args)
+    test(args, dataset, model)
+    # evaluate(model, dataset, args)  # uncomment this and comment above in order to check loss and PPL
 
