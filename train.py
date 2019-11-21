@@ -12,6 +12,7 @@ from models.model import Model
 from tqdm import tqdm
 
 
+
 def update_lr(o, args, epoch):
     if epoch % args.lrstep == 0:
         o.param_groups[0]['lr'] = args.lrhigh

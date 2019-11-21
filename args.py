@@ -78,7 +78,7 @@ def parse_args():
     parser.add_argument("-entdetach", action='store_true')
 
     args = parser.parse_args()
-    args.gpu = "cuda:0" if torch.cuda.is_available() else "cpu"
+    args.gpu = "cuda:1" if torch.cuda.is_available() else "cpu"
     args.device = torch.device(args.gpu)
     # torch.cuda.set_device(args.gpu)
 
