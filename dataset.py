@@ -10,7 +10,7 @@ import ipdb
 class PaperDataset:
     def __init__(self, args):
         args.path = args.datadir + args.data
-        print("Loading Data from ", args.path)
+        print("Loading Data from ", args.datadir)
         self.args = args
         self.make_vocab(args)
 
@@ -232,7 +232,6 @@ class PaperDataset:
             row.out = [token.split("_")[0] + ">" if "_" in token else token for token in row.out]
 
         dataset.fields["tgt"] = self.TARGET
-
 
         test_iter = data.Iterator(dataset, 1, device=args.device, sort_key=lambda x: len(x.title), train=False,
                                   sort=False)
