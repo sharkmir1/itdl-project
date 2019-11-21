@@ -6,4 +6,4 @@
 `python train.py [-title] [-save] {Directory to save model}`
 
 #### Test
-`python test.py [-title] [-save] {Directory where pretrained model is stored`
+`python test.py [-title] [-save] {Directory where pretrained model is stored}`
